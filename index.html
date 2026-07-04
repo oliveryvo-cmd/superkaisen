@@ -366,7 +366,7 @@ function initBabylon(charKey){
   const aura=BABYLON.MeshBuilder.CreateSphere('aura',{diameter:2.2,segments:10},scene);aura.parent=player;aura.position.y=0.9;
   auraMat=new BABYLON.StandardMaterial('auramat',scene);
   auraMat.emissiveColor=charKey==='ollie'?new BABYLON.Color3(0.3,0.2,0):new BABYLON.Color3(0.3,0.05,0.05);
-  auraMat.alpha=0.06;aura.material=auraMat;
+  auraMat.alpha=0.0;aura.material=auraMat;aura.isPickable=false;
 
   // Particle trail
   const ps=new BABYLON.ParticleSystem('ps',80,scene);ps.emitter=player;
