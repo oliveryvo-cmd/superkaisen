@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SuperKaisen — Rise of the Heroes</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;}
+canvas{display:block;}
+
+/* HUD */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10;display:none;}
+#top-left{position:absolute;top:20px;left:20px;}
+#game-title{font-size:1.4rem;font-weight:900;background:linear-gradient(135deg,#ffd700,#7b2ff7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px;}
+#hero-name{font-size:0.65rem;letter-spacing:3px;color:#ffd700;margin-top:2px;}
+
+/* Health & Energy bars */
+#bars{position:absolute;top:20px;right:20px;width:200px;}
+#hp-label{font-size:0.55rem;letter-spacing:2px;color:#ff4466;margin-bottom:3px;text-align:right;}
+#hp-track{width:100%;height:8px;background:rgba(255,255,255,0.08);border-radius:50px;overflow:hidden;margin-bottom:8px;}
+#hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#ff2244,#ff6688);border-radius:50px;transition:width 0.3s;}
+#ep-label{font-size:0.55rem;letter-spacing:2px;color:#ffd700;margin-bottom:3px;text-align:right;}
+#ep-track{width:100%;height:8px;background:rgba(255,255,255,0.08);border-radius:50px;overflow:hidden;}
+#ep-fill{height:100%;width:60%;background:linear-gradient(90deg,#ffd700,#ffaa00);border-radius:50px;transition:width 0.3s;}
+
+/* Level & XP */
+#level-wrap{position:absolute;bottom:80px;left:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,215,0,0.3);border-radius:12px;padding:10px 14px;min-width:160px;}
+#level-txt{font-size:0.85rem;font-weight:900;color:#ffd700;}
+#xp-bar{width:100%;height:4px;background:rgba(255,255,255,0.08);border-radius:50px;overflow:hidden;margin-top:6px;}
+#xp-fill{height:100%;width:0%;background:linear-gradient(90deg,#7b2ff7,#00e5ff);border-radius:50px;transition:width 0.5s;}
+#xp-txt{font-size:0.55rem;color:#555;margin-top:4px;letter-spacing:1px;}
+
+/* Skills */
+#skills{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;}
+.skill{width:54px;height:54px;border-radius:12px;border:2px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.7);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:1.4rem;position:relative;}
+.skill-key{position:absolute;bottom:2px;right:4px;font-size:0.5rem;color:#555;font-weight:700;}
+.skill-cd{position:absolute;inset:0;border-radius:10px;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;font-size:0.7rem;color:#ffd700;font-weight:900;}
+.skill.ready{border-color:#ffd700;box-shadow:0 0 12px rgba(255,215,0,0.3);}
+
+/* Kill feed */
+#killfeed{position:absolute;top:80px;right:20px;display:flex;flex-direction:column;gap:6px;max-width:220px;}
+.kf{background:rgba(0,0,0,0.75);border-left:3px solid #ffd700;padding:5px 12px;font-size:0.7rem;color:#fff;border-radius:0 8px 8px 0;animation:kfFade 3s forwards;}
+@keyframes kfFade{0%,70%{opacity:1;}100%{opacity:0;}}
+
+/* Controls */
+#controls{position:absolute;bottom:20px;right:20px;font-size:0.6rem;color:#333;line-height:2.2;text-align:right;}
+#controls span{color:#ffd700;font-weight:900;}
+
+/* Flash */
+#flash{position:absolute;inset:0;pointer-events:none;transition:background 0.15s;}
+
+/* TITLE SCREEN */
+#titlescreen{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000;}
+#ts-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 60%,#1a0040,#000);}
+#ts-stars{position:absolute;inset:0;}
+#ts-content{position:relative;z-index:2;text-align:center;}
+#ts-logo{font-size:5rem;font-weight:900;background:linear-gradient(135deg,#ffd700,#7b2ff7,#00e5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;margin-bottom:8px;text-shadow:none;}
+#ts-sub{font-size:0.7rem;letter-spacing:6px;color:#444;margin-bottom:60px;}
+#ts-hero{font-size:8rem;margin-bottom:30px;filter:drop-shadow(0 0 30px #ffd700);}
+#ts-start{padding:16px 48px;background:linear-gradient(135deg,#ffd700,#ffaa00);border:none;border-radius:50px;font-size:1rem;font-weight:900;color:#000;cursor:pointer;letter-spacing:2px;transition:all 0.2s;box-shadow:0 0 30px rgba(255,215,0,0.4);}
+#ts-start:hover{transform:scale(1.06);box-shadow:0 0 50px rgba(255,215,0,0.6);}
+#ts-tagline{font-size:0.62rem;color:#333;margin-top:20px;letter-spacing:3px;}
+
+/* GAME OVER */
+#gameover{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.9);}
+#gameover h1{font-size:4rem;font-weight:900;color:#ff2244;margin-bottom:16px;}
+#gameover p{color:#555;letter-spacing:3px;font-size:0.75rem;margin-bottom:40px;}
+#btn-restart{padding:14px 40px;background:#ff2244;border:none;border-radius:50px;color:#fff;font-size:0.9rem;font-weight:900;cursor:pointer;letter-spacing:2px;}
+
+/* LEVEL UP */
+#levelup{position:fixed;inset:0;z-index:150;display:none;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+#lu-text{font-size:3rem;font-weight:900;background:linear-gradient(135deg,#ffd700,#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:luPop 2s forwards;}
+@keyframes luPop{0%{opacity:0;transform:scale(0.5);}20%{opacity:1;transform:scale(1.2);}80%{opacity:1;transform:scale(1);}100%{opacity:0;transform:scale(1);}}
+</style>
+</head>
+<body>
+
+<!-- TITLE SCREEN -->
+<div id="titlescreen">
+  <div id="ts-bg"></div>
+  <canvas id="ts-stars" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+  <div id="ts-content">
+    <div id="ts-logo">SuperKaisen</div>
+    <div id="ts-sub">RISE OF THE HEROES</div>
+    <div id="ts-hero">⚡</div>
+    <button id="ts-start" onclick="startGame()">▶ START GAME</button>
+    <div id="ts-tagline">PLAY AS OLLIE — THE LIGHTNING HERO</div>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameover">
+  <h1>DEFEATED</h1>
+  <p>YOU WERE BEATEN BY THE DARKNESS</p>
+  <button id="btn-restart" onclick="location.reload()">↺ TRY AGAIN</button>
+</div>
+
+<!-- LEVEL UP -->
+<div id="levelup"><div id="lu-text">⚡ LEVEL UP!</div></div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="top-left">
+    <div id="game-title">⚡ SuperKaisen</div>
+    <div id="hero-name">OLLIE — LIGHTNING HERO</div>
+  </div>
+  <div id="bars">
+    <div id="hp-label">HP</div>
+    <div id="hp-track"><div id="hp-fill"></div></div>
+    <div id="ep-label">ENERGY</div>
+    <div id="ep-track"><div id="ep-fill"></div></div>
+  </div>
+  <div id="level-wrap">
+    <div id="level-txt">⚡ LEVEL 1</div>
+    <div id="xp-bar"><div id="xp-fill"></div></div>
+    <div id="xp-txt">0 / 100 XP</div>
+  </div>
+  <div id="skills">
+    <div class="skill ready" id="sk1">⚡<span class="skill-key">Q</span><div class="skill-cd" id="cd1"></div></div>
+    <div class="skill ready" id="sk2">💥<span class="skill-key">E</span><div class="skill-cd" id="cd2"></div></div>
+    <div class="skill ready" id="sk3">🌀<span class="skill-key">R</span><div class="skill-cd" id="cd3"></div></div>
+    <div class="skill ready" id="sk4">🛡️<span class="skill-key">F</span><div class="skill-cd" id="cd4"></div></div>
+  </div>
+  <div id="controls">
+    <span>WASD</span> Move &nbsp;<span>MOUSE</span> Look<br>
+    <span>Q</span> Lightning &nbsp;<span>E</span> Blast<br>
+    <span>R</span> Vortex &nbsp;<span>F</span> Shield
+  </div>
+  <div id="killfeed"></div>
+  <div id="flash"></div>
+</div>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+<script>
+// ===== TITLE STARS =====
+(function(){
+  const c=document.getElementById('ts-stars');
+  const ctx=c.getContext('2d');
+  c.width=window.innerWidth;c.height=window.innerHeight;
+  const stars=Array.from({length:200},()=>({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.5,s:Math.random()*0.5+0.2}));
+  let t=0;
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    stars.forEach(s=>{ctx.fillStyle=`rgba(255,255,255,${0.3+Math.sin(t*s.s)*0.3})`;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();});
+    t+=0.02;requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ===== GAME STATE =====
+let hp=100,maxHp=100,energy=100,maxEnergy=100;
+let level=1,xp=0,xpNeeded=100;
+let kills=0;
+const keys={};
+const cooldowns={q:0,e:0,r:0,f:0};
+const CDS={q:3,e:5,r:8,f:10};
+
+function kf(msg,color='#ffd700'){
+  const d=document.createElement('div');
+  d.className='kf';d.textContent=msg;
+  d.style.borderColor=color;
+  document.getElementById('killfeed').appendChild(d);
+  setTimeout(()=>d.remove(),3000);
+}
+function flash(r,g,b,a){
+  const f=document.getElementById('flash');
+  f.style.background=`rgba(${r},${g},${b},${a})`;
+  setTimeout(()=>f.style.background='rgba(0,0,0,0)',200);
+}
+function gainXP(amt){
+  xp+=amt;
+  if(xp>=xpNeeded){
+    xp-=xpNeeded;level++;xpNeeded=Math.floor(xpNeeded*1.4);
+    maxHp+=20;hp=Math.min(hp+30,maxHp);
+    maxEnergy+=10;
+    document.getElementById('level-txt').textContent='⚡ LEVEL '+level;
+    const lu=document.getElementById('levelup');
+    lu.style.display='flex';
+    setTimeout(()=>lu.style.display='none',2000);
+    kf('🎉 LEVEL UP! Now level '+level,'#ffd700');
+  }
+  document.getElementById('xp-fill').style.width=(xp/xpNeeded*100)+'%';
+  document.getElementById('xp-txt').textContent=xp+' / '+xpNeeded+' XP';
+}
+function updateBars(){
+  document.getElementById('hp-fill').style.width=(hp/maxHp*100)+'%';
+  document.getElementById('ep-fill').style.width=(energy/maxEnergy*100)+'%';
+}
+
+// Character select
+let chosenChar = null;
+const CHAR_DATA = {
+  ollie: {name:'Ollie',title:'LIGHTNING HERO',emoji:'⚡',speed:12,power:'Lightning Strike'},
+  speedgirl: {name:'Speed Girl',title:'SUPER SPEED',emoji:'🔴',speed:18,power:'Sonic Dash'}
+};
+
+window.startGame=function(){
+  document.getElementById('titlescreen').style.display='none';
+  // Show character select
+  const cs=document.createElement('div');
+  cs.id='charselect';
+  cs.style.cssText='position:fixed;inset:0;z-index:90;background:radial-gradient(ellipse at 50% 60%,#1a0040,#000);display:flex;flex-direction:column;align-items:center;justify-content:center;';
+  cs.innerHTML=`
+    <div style="font-size:2.5rem;font-weight:900;background:linear-gradient(135deg,#ffd700,#7b2ff7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;">CHOOSE YOUR HERO</div>
+    <div style="font-size:0.65rem;letter-spacing:4px;color:#444;margin-bottom:50px;">EVERY HERO HAS A COOL ABILITY</div>
+    <div style="display:flex;gap:30px;">
+      <div onclick="pickChar('ollie',this)" style="width:200px;padding:30px 20px;border-radius:20px;border:2px solid rgba(255,215,0,0.2);background:rgba(255,215,0,0.05);cursor:pointer;text-align:center;transition:all 0.2s;" onmouseover="this.style.borderColor='#ffd700';this.style.transform='translateY(-8px)'" onmouseout="this.style.borderColor='rgba(255,215,0,0.2)';this.style.transform='translateY(0)'">
+        <div style="font-size:4rem;margin-bottom:12px;">⚡</div>
+        <div style="font-size:1.1rem;font-weight:900;color:#ffd700;margin-bottom:6px;">OLLIE</div>
+        <div style="font-size:0.65rem;color:#ffd700;letter-spacing:2px;margin-bottom:10px;">LIGHTNING HERO</div>
+        <div style="font-size:0.62rem;color:#555;line-height:1.6;">Gold & black space armor. Spiky dark blue hair. Purple glowing eyes. Lightning powers.</div>
+      </div>
+      <div onclick="pickChar('speedgirl',this)" style="width:200px;padding:30px 20px;border-radius:20px;border:2px solid rgba(255,50,50,0.2);background:rgba(255,50,50,0.05);cursor:pointer;text-align:center;transition:all 0.2s;" onmouseover="this.style.borderColor='#ff3333';this.style.transform='translateY(-8px)'" onmouseout="this.style.borderColor='rgba(255,50,50,0.2)';this.style.transform='translateY(0)'">
+        <div style="font-size:4rem;margin-bottom:12px;">💨</div>
+        <div style="font-size:1.1rem;font-weight:900;color:#ff4444;margin-bottom:6px;">SPEED GIRL</div>
+        <div style="font-size:0.65rem;color:#ff4444;letter-spacing:2px;margin-bottom:10px;">SUPER SPEED</div>
+        <div style="font-size:0.62rem;color:#555;line-height:1.6;">Red & silver speed armor. White flowing hair. Red glowing eyes. Thruster boots.</div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(cs);
+};
+
+window.pickChar=function(char){
+  chosenChar=char;
+  document.getElementById('charselect').remove();
+  document.getElementById('hud').style.display='block';
+  const cd=CHAR_DATA[char];
+  document.getElementById('hero-name').textContent=cd.emoji+' '+cd.name+' — '+cd.title;
+  initBabylon(char);
+};
+
+function initBabylon(charKey){
+  const canvas=document.createElement('canvas');
+  canvas.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:1;';
+  document.body.appendChild(canvas);
+
+  const engine=new BABYLON.Engine(canvas,true);
+  const scene=new BABYLON.Scene(engine);
+  scene.clearColor=new BABYLON.Color4(0.02,0.0,0.06,1);
+  scene.fogMode=BABYLON.Scene.FOGMODE_EXP2;scene.fogDensity=0.005;
+  scene.fogColor=new BABYLON.Color3(0.05,0.0,0.1);
+  scene.gravity=new BABYLON.Vector3(0,-0.6,0);
+  scene.collisionsEnabled=true;
+
+  // Lighting
+  const sun=new BABYLON.DirectionalLight('sun',new BABYLON.Vector3(-1,-2,-1),scene);sun.intensity=2;
+  const hem=new BABYLON.HemisphericLight('hem',new BABYLON.Vector3(0,1,0),scene);hem.intensity=0.6;hem.diffuse=new BABYLON.Color3(0.6,0.4,1);
+  const sg=new BABYLON.ShadowGenerator(2048,sun);sg.useBlurExponentialShadowMap=true;
+
+  // ===== WORLD =====
+  // Ground
+  const ground=BABYLON.MeshBuilder.CreateGround('g',{width:500,height:500,subdivisions:8},scene);
+  const gm=new BABYLON.StandardMaterial('gm',scene);
+  gm.diffuseColor=new BABYLON.Color3(0.04,0.02,0.08);gm.specularColor=new BABYLON.Color3(0.2,0.1,0.3);
+  ground.material=gm;ground.receiveShadows=true;ground.checkCollisions=true;
+
+  // Grid lines
+  const gridLines=[];
+  for(let i=-250;i<=250;i+=20){
+    const h=BABYLON.MeshBuilder.CreateGround('gl',{width:500,height:0.05},scene);h.position.set(0,0.01,i);
+    const v=BABYLON.MeshBuilder.CreateGround('glv',{width:0.05,height:500},scene);v.position.set(i,0.01,0);
+    const lm=new BABYLON.StandardMaterial('lm'+i,scene);lm.emissiveColor=new BABYLON.Color3(0.15,0.05,0.25);lm.alpha=0.5;
+    h.material=lm;v.material=lm;
+  }
+
+  // Floating platforms
+  const platforms=[];
+  [[0,8,0,30,2,30],[40,15,40,20,2,20],[-40,12,40,18,2,18],[40,20,-40,15,2,15],
+   [-40,18,-40,22,2,22],[0,25,60,16,2,16],[0,25,-60,16,2,16],[60,10,0,18,2,18],[-60,14,0,18,2,18]
+  ].forEach(([x,y,z,w,h,d])=>{
+    const p=BABYLON.MeshBuilder.CreateBox('plat',{width:w,height:h,depth:d},scene);p.position.set(x,y,z);
+    const pm=new BABYLON.StandardMaterial('pm',scene);pm.diffuseColor=new BABYLON.Color3(0.1,0.05,0.2);pm.emissiveColor=new BABYLON.Color3(0.05,0.02,0.12);
+    p.material=pm;p.receiveShadows=true;p.checkCollisions=true;sg.addShadowCaster(p);
+    // Glowing edge
+    const edge=BABYLON.MeshBuilder.CreateBox('edge',{width:w+0.2,height:0.15,depth:d+0.2},scene);edge.position.set(x,y+h/2+0.07,z);
+    const em=new BABYLON.StandardMaterial('em',scene);em.emissiveColor=new BABYLON.Color3(0.4,0.1,0.8);edge.material=em;
+    platforms.push(p);
+  });
+
+  // Crystals
+  for(let i=0;i<30;i++){
+    const angle=Math.random()*Math.PI*2;const dist=30+Math.random()*100;
+    const cx=Math.cos(angle)*dist,cz=Math.sin(angle)*dist;
+    const h=5+Math.random()*15;
+    const cry=BABYLON.MeshBuilder.CreateCylinder('cry',{height:h,diameterTop:0,diameterBottom:2+Math.random()*2,tessellation:6},scene);
+    cry.position.set(cx,h/2,cz);
+    const crym=new BABYLON.StandardMaterial('crym'+i,scene);
+    crym.emissiveColor=new BABYLON.Color3(Math.random()*0.3,Math.random()*0.2,0.5+Math.random()*0.5);
+    crym.alpha=0.8;cry.material=crym;sg.addShadowCaster(cry);
+  }
+
+  // Planets in sky
+  [[0,200,-300,60,0.3,0.5,1],[200,150,200,40,1,0.3,0.3],[-200,180,-200,50,0.3,1,0.5]].forEach(([x,y,z,r,cr,cg,cb])=>{
+    const planet=BABYLON.MeshBuilder.CreateSphere('planet',{diameter:r*2,segments:16},scene);planet.position.set(x,y,z);
+    const pm=new BABYLON.StandardMaterial('pm'+x,scene);pm.emissiveColor=new BABYLON.Color3(cr*0.3,cg*0.3,cb*0.3);pm.diffuseColor=new BABYLON.Color3(cr,cg,cb);planet.material=pm;
+  });
+
+  // Stars
+  for(let i=0;i<300;i++){
+    const s=BABYLON.MeshBuilder.CreateSphere('s',{diameter:0.3+Math.random()*0.5,segments:4},scene);
+    s.position.set((Math.random()-0.5)*600,(Math.random())*200,(Math.random()-0.5)*600);
+    const sm=new BABYLON.StandardMaterial('sm'+i,scene);sm.emissiveColor=new BABYLON.Color3(1,1,1);s.material=sm;
+  }
+
+  // ===== PLAYER =====
+  const player=BABYLON.MeshBuilder.CreateCapsule('player',{height:1.8,radius:0.4,tessellation:8},scene);
+  player.position.set(0,1,0);player.visibility=0;player.checkCollisions=true;player.applyGravity=true;
+  player.ellipsoid=new BABYLON.Vector3(0.4,0.9,0.4);player.ellipsoidOffset=new BABYLON.Vector3(0,0.9,0);
+
+  // ===== CHARACTER MODEL — Real Image Sprites =====
+  const charNode=new BABYLON.TransformNode('char',scene);
+  charNode.parent=player;
+  let cape=null,capeMat=null,auraMat=null;
+
+  function makeMat(r,g,b,er,eg,eb,alpha){
+    const m=new BABYLON.StandardMaterial('mat'+Math.random(),scene);
+    m.diffuseColor=new BABYLON.Color3(r,g,b);
+    m.emissiveColor=new BABYLON.Color3(er,eg,eb);
+    if(alpha!==undefined)m.alpha=alpha;
+    return m;
+  }
+
+  // Sprite plane using real image
+  const imgFile = charKey==='ollie' ? 'OLLIE.png' : 'Speed Girl.png';
+  const sprite = BABYLON.MeshBuilder.CreatePlane('sprite',{width:2,height:2.8},scene);
+  sprite.parent=charNode;sprite.position.set(0,0.5,0);
+  sprite.billboardMode=BABYLON.Mesh.BILLBOARDMODE_Y;
+  const spriteMat=new BABYLON.StandardMaterial('spritemat',scene);
+  spriteMat.diffuseTexture=new BABYLON.Texture(imgFile,scene);
+  spriteMat.diffuseTexture.hasAlpha=true;
+  spriteMat.useAlphaFromDiffuseTexture=true;
+  spriteMat.emissiveColor=new BABYLON.Color3(0.3,0.3,0.3);
+  spriteMat.backFaceCulling=false;
+  sprite.material=spriteMat;
+  sg.addShadowCaster(sprite);
+
+  if(charKey==='ollie'){
+    // OLLIE — Gold/Black Space Armor, Spiky Dark Blue Hair, Purple Eyes
+    // Body suit (black)
+    const body=BABYLON.MeshBuilder.CreateBox('body',{width:0.58,height:0.75,depth:0.32},scene);body.parent=charNode;body.position.y=0.15;body.material=makeMat(0.06,0.06,0.08,0.02,0.02,0.04);sg.addShadowCaster(body);
+    // Chest armor (gold)
+    const chestMat=makeMat(0.85,0.65,0.0,0.5,0.35,0);
+    const chest=BABYLON.MeshBuilder.CreateBox('chest',{width:0.54,height:0.48,depth:0.18},scene);chest.parent=charNode;chest.position.set(0,0.22,-0.18);chest.material=chestMat;sg.addShadowCaster(chest);
+    // Chest center stripe (black)
+    const stripe=BABYLON.MeshBuilder.CreateBox('stripe',{width:0.12,height:0.44,depth:0.19},scene);stripe.parent=charNode;stripe.position.set(0,0.22,-0.19);stripe.material=makeMat(0.05,0.05,0.05,0,0,0);
+    // Lightning bolt (bright yellow)
+    const boltMat=makeMat(0,0,0,1,0.95,0.1);
+    const b1=BABYLON.MeshBuilder.CreateBox('b1',{width:0.06,height:0.22,depth:0.05},scene);b1.parent=charNode;b1.position.set(0.04,0.28,-0.28);b1.material=boltMat;
+    const b2=BABYLON.MeshBuilder.CreateBox('b2',{width:0.06,height:0.22,depth:0.05},scene);b2.parent=charNode;b2.position.set(-0.04,0.14,-0.28);b2.material=boltMat;
+    // Shoulder pads (gold, large)
+    [-0.4,0.4].forEach((x,i)=>{
+      const sp=BABYLON.MeshBuilder.CreateBox('sp'+i,{width:0.24,height:0.22,depth:0.32},scene);sp.parent=charNode;sp.position.set(x,0.35,0);sp.material=chestMat;sg.addShadowCaster(sp);
+      // Blue accent stripe on shoulder
+      const sa=BABYLON.MeshBuilder.CreateBox('sa'+i,{width:0.25,height:0.05,depth:0.33},scene);sa.parent=charNode;sa.position.set(x,0.28,0);sa.material=makeMat(0,0,0,0.1,0.5,1);
+    });
+    // Arms (black with gold gauntlets)
+    [-0.38,0.38].forEach((x,i)=>{
+      const arm=BABYLON.MeshBuilder.CreateBox('arm'+i,{width:0.18,height:0.5,depth:0.18},scene);arm.parent=charNode;arm.position.set(x,0.05,0);arm.material=makeMat(0.06,0.06,0.08,0.02,0.02,0.04);sg.addShadowCaster(arm);
+      // Gauntlet (gold)
+      const gnt=BABYLON.MeshBuilder.CreateBox('gnt'+i,{width:0.22,height:0.2,depth:0.22},scene);gnt.parent=charNode;gnt.position.set(x,-0.2,0);gnt.material=chestMat;sg.addShadowCaster(gnt);
+      // Blue wrist band
+      const wb=BABYLON.MeshBuilder.CreateBox('wb'+i,{width:0.23,height:0.05,depth:0.23},scene);wb.parent=charNode;wb.position.set(x,-0.12,0);wb.material=makeMat(0,0,0,0.1,0.5,1);
+    });
+    // Legs (black with gold knee pads)
+    [-0.15,0.15].forEach((x,i)=>{
+      const leg=BABYLON.MeshBuilder.CreateBox('leg'+i,{width:0.21,height:0.5,depth:0.23},scene);leg.parent=charNode;leg.position.set(x,-0.37,0);leg.material=makeMat(0.06,0.06,0.1,0.02,0.02,0.05);sg.addShadowCaster(leg);
+      // Knee pad (gold)
+      const kp=BABYLON.MeshBuilder.CreateBox('kp'+i,{width:0.22,height:0.1,depth:0.24},scene);kp.parent=charNode;kp.position.set(x,-0.18,-0.02);kp.material=chestMat;
+      // Boots (gold)
+      const boot=BABYLON.MeshBuilder.CreateBox('boot'+i,{width:0.24,height:0.18,depth:0.3},scene);boot.parent=charNode;boot.position.set(x,-0.65,0.04);boot.material=chestMat;sg.addShadowCaster(boot);
+    });
+    // Belt (gold)
+    const belt=BABYLON.MeshBuilder.CreateBox('belt',{width:0.6,height:0.1,depth:0.2},scene);belt.parent=charNode;belt.position.set(0,-0.1,-0.05);belt.material=chestMat;
+    // Head (skin tone)
+    const head=BABYLON.MeshBuilder.CreateBox('head',{width:0.48,height:0.46,depth:0.44},scene);head.parent=charNode;head.position.y=0.75;head.material=makeMat(0.75,0.55,0.38,0.1,0.06,0.02);sg.addShadowCaster(head);
+    // Face mask bottom (black collar)
+    const collar=BABYLON.MeshBuilder.CreateBox('collar',{width:0.5,height:0.12,depth:0.36},scene);collar.parent=charNode;collar.position.set(0,0.54,0);collar.material=makeMat(0.04,0.04,0.04,0,0,0);
+    // Dark blue spiky hair — multiple spikes
+    const hairMat=makeMat(0.04,0.08,0.38,0.02,0.05,0.2);
+    // Base hair
+    const hairBase=BABYLON.MeshBuilder.CreateBox('hbase',{width:0.52,height:0.18,depth:0.5},scene);hairBase.parent=charNode;hairBase.position.set(0,1.02,0.02);hairBase.material=hairMat;
+    // Spikes
+    [[0,0.28,-0.1,0.18,0.35,0.14],[0.18,0.22,-0.08,0.14,0.28,0.12],[-0.18,0.22,-0.08,0.14,0.28,0.12],[0.1,0.3,-0.15,0.1,0.32,0.1],[-0.1,0.3,-0.15,0.1,0.32,0.1],[0,0.2,-0.22,0.2,0.22,0.1]].forEach(([x,y,z,w,h,d],i)=>{
+      const spike=BABYLON.MeshBuilder.CreateBox('spike'+i,{width:w,height:h,depth:d},scene);spike.parent=charNode;spike.position.set(x,0.88+y,z);spike.material=hairMat;
+    });
+    // Eyes (glowing purple)
+    const eyeMat=makeMat(0.1,0,0.2,0.7,0.1,1);
+    [-0.13,0.13].forEach((x,i)=>{
+      const eye=BABYLON.MeshBuilder.CreateSphere('eye'+i,{diameter:0.1,segments:8},scene);eye.parent=charNode;eye.position.set(x,0.76,-0.23);eye.material=eyeMat;
+    });
+    // Aero visor line (across forehead)
+    const visor=BABYLON.MeshBuilder.CreateBox('visor',{width:0.5,height:0.07,depth:0.08},scene);visor.parent=charNode;visor.position.set(0,0.83,-0.23);visor.material=makeMat(0,0,0,0.1,0.5,1);
+    // Cape (gold, flowing behind)
+    cape=BABYLON.MeshBuilder.CreatePlane('cape',{width:0.65,height:1.05},scene);cape.parent=charNode;cape.position.set(0,0.08,0.2);cape.rotation.y=Math.PI;
+    capeMat=makeMat(0.85,0.55,0,0.55,0.3,0);capeMat.alpha=0.88;capeMat.backFaceCulling=false;cape.material=capeMat;
+    // Energy core backpack glow
+    const core=BABYLON.MeshBuilder.CreateBox('core',{width:0.28,height:0.4,depth:0.08},scene);core.parent=charNode;core.position.set(0,0.22,0.17);core.material=makeMat(0,0,0,0.1,0.6,1);
+
+  } else {
+    // SPEED GIRL — Red/Silver Armor, White Hair, Red Eyes, Thruster Boots
+    const redMat=makeMat(0.75,0.1,0.1,0.5,0.05,0.05);
+    const silverMat=makeMat(0.7,0.7,0.75,0.15,0.15,0.18);
+    const goldAccMat=makeMat(0.8,0.65,0,0.4,0.3,0);
+    // Body suit (red)
+    const body=BABYLON.MeshBuilder.CreateBox('body',{width:0.55,height:0.75,depth:0.28},scene);body.parent=charNode;body.position.y=0.15;body.material=redMat;sg.addShadowCaster(body);
+    // Chest plate (silver center)
+    const cp=BABYLON.MeshBuilder.CreateBox('cp',{width:0.32,height:0.44,depth:0.16},scene);cp.parent=charNode;cp.position.set(0,0.22,-0.17);cp.material=silverMat;sg.addShadowCaster(cp);
+    // Lightning bolt on chest (gold)
+    const boltMat=makeMat(0,0,0,1,0.85,0);
+    const b1=BABYLON.MeshBuilder.CreateBox('b1',{width:0.06,height:0.2,depth:0.04},scene);b1.parent=charNode;b1.position.set(0.03,0.27,-0.26);b1.material=boltMat;
+    const b2=BABYLON.MeshBuilder.CreateBox('b2',{width:0.06,height:0.2,depth:0.04},scene);b2.parent=charNode;b2.position.set(-0.03,0.14,-0.26);b2.material=boltMat;
+    // Gold energy streaks on suit sides
+    [-0.22,0.22].forEach((x,i)=>{
+      const streak=BABYLON.MeshBuilder.CreateBox('streak'+i,{width:0.05,height:0.7,depth:0.15},scene);streak.parent=charNode;streak.position.set(x,0.12,-0.1);streak.material=goldAccMat;
+    });
+    // Shoulder armor (red+silver)
+    [-0.38,0.38].forEach((x,i)=>{
+      const sp=BABYLON.MeshBuilder.CreateBox('sp'+i,{width:0.2,height:0.18,depth:0.26},scene);sp.parent=charNode;sp.position.set(x,0.34,0);sp.material=redMat;sg.addShadowCaster(sp);
+      // Silver edge
+      const se=BABYLON.MeshBuilder.CreateBox('se'+i,{width:0.21,height:0.06,depth:0.27},scene);se.parent=charNode;se.position.set(x,0.26,0);se.material=silverMat;
+    });
+    // Arms (red with blue wrist tech)
+    [-0.36,0.36].forEach((x,i)=>{
+      const arm=BABYLON.MeshBuilder.CreateBox('arm'+i,{width:0.17,height:0.48,depth:0.17},scene);arm.parent=charNode;arm.position.set(x,0.05,0);arm.material=redMat;sg.addShadowCaster(arm);
+      const glove=BABYLON.MeshBuilder.CreateBox('glove'+i,{width:0.19,height:0.18,depth:0.19},scene);glove.parent=charNode;glove.position.set(x,-0.2,0);glove.material=silverMat;
+      // Blue tech wrist
+      const wt=BABYLON.MeshBuilder.CreateBox('wt'+i,{width:0.2,height:0.05,depth:0.2},scene);wt.parent=charNode;wt.position.set(x,-0.11,0);wt.material=makeMat(0,0,0,0.1,0.7,1);
+    });
+    // High-flex joint accents (silver) on hips
+    [-0.18,0.18].forEach((x,i)=>{
+      const hj=BABYLON.MeshBuilder.CreateSphere('hj'+i,{diameter:0.14,segments:6},scene);hj.parent=charNode;hj.position.set(x,-0.06,0);hj.material=silverMat;
+    });
+    // Legs (red with silver knee)
+    [-0.15,0.15].forEach((x,i)=>{
+      const leg=BABYLON.MeshBuilder.CreateBox('leg'+i,{width:0.2,height:0.48,depth:0.22},scene);leg.parent=charNode;leg.position.set(x,-0.37,0);leg.material=redMat;sg.addShadowCaster(leg);
+      const kp=BABYLON.MeshBuilder.CreateBox('kp'+i,{width:0.21,height:0.1,depth:0.22},scene);kp.parent=charNode;kp.position.set(x,-0.2,-0.01);kp.material=silverMat;
+      // Energy amplifier unit (gold streak on thigh)
+      const ea=BABYLON.MeshBuilder.CreateBox('ea'+i,{width:0.06,height:0.3,depth:0.1},scene);ea.parent=charNode;ea.position.set(x*0.4,-0.3,-0.12);ea.material=goldAccMat;
+      // Stability thruster boots (silver + red glow at bottom)
+      const boot=BABYLON.MeshBuilder.CreateBox('boot'+i,{width:0.24,height:0.2,depth:0.32},scene);boot.parent=charNode;boot.position.set(x,-0.66,0.04);boot.material=silverMat;sg.addShadowCaster(boot);
+      // Thruster glow (red underneath)
+      const thr=BABYLON.MeshBuilder.CreateCylinder('thr'+i,{height:0.08,diameter:0.15,tessellation:12},scene);thr.parent=charNode;thr.position.set(x,-0.78,0.04);thr.material=makeMat(0,0,0,1,0.2,0.1);
+    });
+    // Belt (red with gold buckle)
+    const belt=BABYLON.MeshBuilder.CreateBox('belt',{width:0.57,height:0.08,depth:0.18},scene);belt.parent=charNode;belt.position.set(0,-0.1,0);belt.material=redMat;
+    const buckle=BABYLON.MeshBuilder.CreateBox('buckle',{width:0.14,height:0.09,depth:0.19},scene);buckle.parent=charNode;buckle.position.set(0,-0.1,-0.01);buckle.material=goldAccMat;
+    // Head (skin)
+    const head=BABYLON.MeshBuilder.CreateBox('head',{width:0.46,height:0.44,depth:0.42},scene);head.parent=charNode;head.position.y=0.75;head.material=makeMat(0.75,0.55,0.38,0.1,0.06,0.02);sg.addShadowCaster(head);
+    // Aero-dynamic visor (red band across eyes)
+    const visor=BABYLON.MeshBuilder.CreateBox('visor',{width:0.5,height:0.09,depth:0.08},scene);visor.parent=charNode;visor.position.set(0,0.78,-0.22);visor.material=makeMat(0.6,0.05,0.05,0.8,0.1,0.1);
+    // Eyes (glowing red through visor)
+    const eyeMat=makeMat(0.1,0,0,1,0.1,0.1);
+    [-0.12,0.12].forEach((x,i)=>{
+      const eye=BABYLON.MeshBuilder.CreateSphere('eye'+i,{diameter:0.09,segments:8},scene);eye.parent=charNode;eye.position.set(x,0.77,-0.22);eye.material=eyeMat;
+    });
+    // White long flowing hair
+    const hairMat=makeMat(0.85,0.85,0.9,0.15,0.15,0.18);
+    // Top hair
+    const htop=BABYLON.MeshBuilder.CreateBox('htop',{width:0.5,height:0.18,depth:0.48},scene);htop.parent=charNode;htop.position.set(0,1.0,0.02);htop.material=hairMat;
+    // Long flowing strands (back)
+    [[0,0.6,0.22,0.44,0.7,0.12],[0.18,0.4,0.2,0.14,0.55,0.1],[-0.18,0.4,0.2,0.14,0.55,0.1],[-0.22,0.2,0.15,0.1,0.4,0.08],[0.22,0.2,0.15,0.1,0.4,0.08]].forEach(([x,y,z,w,h,d],i)=>{
+      const strand=BABYLON.MeshBuilder.CreateBox('strand'+i,{width:w,height:h,depth:d},scene);strand.parent=charNode;strand.position.set(x,0.75-y*0.3,z);strand.material=hairMat;
+    });
+    // Side hair pieces
+    [-0.26,0.26].forEach((x,i)=>{
+      const sh=BABYLON.MeshBuilder.CreateBox('sh'+i,{width:0.1,height:0.3,depth:0.3},scene);sh.parent=charNode;sh.position.set(x,0.72,-0.05);sh.material=hairMat;
+    });
+    // Speed lines / motion blur streaks (gold)
+    [[-0.28,-0.45,-0.08],[-0.28,-0.05,-0.08],[0.28,-0.45,-0.08],[0.28,-0.05,-0.08]].forEach(([x,y,z],i)=>{
+      const sl=BABYLON.MeshBuilder.CreateBox('sl'+i,{width:0.04,height:0.35,depth:0.06},scene);sl.parent=charNode;sl.position.set(x,y,z);sl.rotation.z=0.3*(x>0?-1:1);sl.material=goldAccMat;
+    });
+    // Cape (none for speed girl — she has energy trails instead)
+    cape=null;
+  }
+
+  // Shared aura
+  const aura=BABYLON.MeshBuilder.CreateSphere('aura',{diameter:2.2,segments:10},scene);aura.parent=player;aura.position.y=0.9;
+  auraMat=new BABYLON.StandardMaterial('auramat',scene);
+  auraMat.emissiveColor=charKey==='ollie'?new BABYLON.Color3(0.3,0.2,0):new BABYLON.Color3(0.3,0.05,0.05);
+  auraMat.alpha=0.06;aura.material=auraMat;
+
+  // Particle trail
+  const ps=new BABYLON.ParticleSystem('ps',80,scene);ps.emitter=player;
+  ps.minEmitBox=new BABYLON.Vector3(-0.2,0,-0.2);ps.maxEmitBox=new BABYLON.Vector3(0.2,0.5,0.2);
+  if(charKey==='ollie'){ps.color1=new BABYLON.Color4(1,0.85,0,1);ps.color2=new BABYLON.Color4(0.5,0.2,0,0.5);}
+  else{ps.color1=new BABYLON.Color4(1,0.15,0.15,1);ps.color2=new BABYLON.Color4(0.5,0,0,0.5);}
+  ps.minSize=0.03;ps.maxSize=0.1;ps.emitRate=30;ps.start();
+
+  // Camera
+  const cam=new BABYLON.ArcRotateCamera('cam',-Math.PI/2,Math.PI/3,8,new BABYLON.Vector3(0,1,0),scene);
+  cam.lowerRadiusLimit=4;cam.upperRadiusLimit=18;cam.attachControl(canvas,true);
+
+  // ===== ENEMIES =====
+  const enemies=[];
+  const ENEMY_CONFIGS=[
+    {color:[0.8,0.1,0.15],speed:3,hp:60,xp:20,name:'Shadow Grunt'},
+    {color:[0.6,0.05,0.4],speed:4,hp:40,xp:15,name:'Void Runner'},
+    {color:[0.9,0.3,0.0],speed:2.5,hp:100,xp:35,name:'Dark Titan'},
+  ];
+
+  function spawnEnemy(x,z){
+    const cfg=ENEMY_CONFIGS[Math.floor(Math.random()*ENEMY_CONFIGS.length)];
+    const e=BABYLON.MeshBuilder.CreateCapsule('enemy',{height:1.8,radius:0.4,tessellation:6},scene);
+    e.position.set(x,0.9,z);e.visibility=0;e.checkCollisions=true;
+    e.userData={hp:cfg.hp,maxHp:cfg.hp,speed:cfg.speed,xpReward:cfg.xp,name:cfg.name,alive:true,attackTimer:0};
+
+    // Enemy visual
+    const ev=new BABYLON.TransformNode('ev',scene);ev.parent=e;
+    const eb=BABYLON.MeshBuilder.CreateBox('eb',{width:0.6,height:0.9,depth:0.4},scene);eb.parent=ev;eb.position.y=0.15;
+    const ebm=new BABYLON.StandardMaterial('ebm',scene);ebm.diffuseColor=new BABYLON.Color3(...cfg.color);ebm.emissiveColor=new BABYLON.Color3(cfg.color[0]*0.4,cfg.color[1]*0.1,cfg.color[2]*0.4);eb.material=ebm;
+    const eh=BABYLON.MeshBuilder.CreateSphere('eh',{diameter:0.5,segments:6},scene);eh.parent=ev;eh.position.y=0.75;eh.material=ebm;
+    // Enemy eyes
+    [-0.1,0.1].forEach((ex,i)=>{
+      const eye=BABYLON.MeshBuilder.CreateSphere('eeye'+i,{diameter:0.1},scene);eye.parent=ev;eye.position.set(ex,0.78,-0.22);
+      const em2=new BABYLON.StandardMaterial('em2'+i,scene);em2.emissiveColor=new BABYLON.Color3(1,0,0);eye.material=em2;
+    });
+    // HP bar above enemy
+    const hpPlane=BABYLON.MeshBuilder.CreatePlane('ehp',{width:1,height:0.12},scene);hpPlane.parent=e;hpPlane.position.y=2.2;hpPlane.billboardMode=BABYLON.Mesh.BILLBOARDMODE_ALL;
+    const hpMat=new BABYLON.StandardMaterial('hpmat',scene);hpMat.emissiveColor=new BABYLON.Color3(1,0,0.2);hpPlane.material=hpMat;
+    const lightE=new BABYLON.PointLight('el',new BABYLON.Vector3(0,0.5,0),scene);lightE.parent=e;lightE.diffuse=new BABYLON.Color3(...cfg.color);lightE.intensity=3;lightE.range=5;
+    sg.addShadowCaster(e);
+    enemies.push(e);
+    return e;
+  }
+
+  // Spawn initial enemies
+  for(let i=0;i<12;i++){
+    const angle=Math.random()*Math.PI*2;const dist=20+Math.random()*60;
+    spawnEnemy(Math.cos(angle)*dist,Math.sin(angle)*dist);
+  }
+
+  // ===== POWERS =====
+  const effects=[];
+
+  function lightningStrike(){
+    if(cooldowns.q>0||energy<20) return;
+    cooldowns.q=CDS.q;energy=Math.max(0,energy-20);
+    flash(255,255,0,0.4);
+    kf('⚡ Lightning Strike!','#ffd700');
+    // Lightning bolts
+    for(let i=0;i<8;i++){
+      const angle=Math.random()*Math.PI*2;const dist=3+Math.random()*6;
+      const lx=player.position.x+Math.cos(angle)*dist;
+      const lz=player.position.z+Math.sin(angle)*dist;
+      const bolt2=BABYLON.MeshBuilder.CreateBox('lbolt',{width:0.15,height:8,depth:0.15},scene);
+      bolt2.position.set(lx,4,lz);
+      const bm2=new BABYLON.StandardMaterial('bm2',scene);bm2.emissiveColor=new BABYLON.Color3(1,1,0.2);bolt2.material=bm2;
+      effects.push({mesh:bolt2,life:0.4});
+      // Damage nearby enemies
+      enemies.forEach(e=>{
+        if(!e.userData||!e.userData.alive) return;
+        const d=new BABYLON.Vector3(lx-e.position.x,0,lz-e.position.z).length();
+        if(d<4){damageEnemy(e,30+level*5);}
+      });
+    }
+    const flash2=BABYLON.MeshBuilder.CreateSphere('lflash',{diameter:12,segments:6},scene);
+    flash2.position.copyFrom(player.position).addInPlaceFromFloats(0,0.5,0);
+    const fm=new BABYLON.StandardMaterial('fm',scene);fm.emissiveColor=new BABYLON.Color3(1,1,0);fm.alpha=0.2;flash2.material=fm;
+    effects.push({mesh:flash2,life:0.3});
+  }
+
+  function energyBlast(){
+    if(cooldowns.e>0||energy<30) return;
+    cooldowns.e=CDS.e;energy=Math.max(0,energy-30);
+    kf('💥 Energy Blast!','#ffd700');
+    const fwd=cam.getForwardRay().direction;
+    const dir=new BABYLON.Vector3(fwd.x,0,fwd.z).normalize();
+    const blast=BABYLON.MeshBuilder.CreateSphere('blast',{diameter:0.6,segments:6},scene);
+    blast.position.copyFrom(player.position).addInPlaceFromFloats(0,0.8,0);
+    const bm3=new BABYLON.StandardMaterial('bm3',scene);bm3.emissiveColor=new BABYLON.Color3(1,0.7,0);blast.material=bm3;
+    let blastDist=0;
+    const blastInt=setInterval(()=>{
+      blast.position.addInPlace(dir.scale(0.8));blastDist+=0.8;
+      enemies.forEach(e=>{
+        if(!e.userData||!e.userData.alive) return;
+        if(BABYLON.Vector3.Distance(blast.position,e.position)<2){damageEnemy(e,50+level*8);clearInterval(blastInt);blast.dispose();}
+      });
+      if(blastDist>40){clearInterval(blastInt);blast.dispose();}
+    },16);
+  }
+
+  function gravityVortex(){
+    if(cooldowns.r>0||energy<40) return;
+    cooldowns.r=CDS.r;energy=Math.max(0,energy-40);
+    kf('🌀 Gravity Vortex!','#7b2ff7');
+    flash(123,47,247,0.3);
+    const vortex=BABYLON.MeshBuilder.CreateTorus('vortex',{diameter:8,thickness:0.5,tessellation:24},scene);
+    vortex.position.copyFrom(player.position).addInPlaceFromFloats(0,1,0);vortex.rotation.x=Math.PI/2;
+    const vm=new BABYLON.StandardMaterial('vm',scene);vm.emissiveColor=new BABYLON.Color3(0.5,0.1,1);vm.alpha=0.7;vortex.material=vm;
+    effects.push({mesh:vortex,life:2,spin:true});
+    enemies.forEach(e=>{
+      if(!e.userData||!e.userData.alive) return;
+      const d=BABYLON.Vector3.Distance(e.position,player.position);
+      if(d<12){damageEnemy(e,40+level*6);e.position.addInPlace(player.position.subtract(e.position).normalize().scale(3));}
+    });
+  }
+
+  function shield(){
+    if(cooldowns.f>0) return;
+    cooldowns.f=CDS.f;
+    kf('🛡️ Shield activated!','#00e5ff');
+    hp=Math.min(maxHp,hp+30);updateBars();
+    const sh=BABYLON.MeshBuilder.CreateSphere('shield',{diameter:3,segments:8},scene);
+    sh.parent=player;sh.position.y=0.9;
+    const shm=new BABYLON.StandardMaterial('shm',scene);shm.emissiveColor=new BABYLON.Color3(0,0.8,1);shm.alpha=0.2;sh.material=shm;
+    effects.push({mesh:sh,life:3,shieldRef:true});
+    setTimeout(()=>{if(sh&&!sh.isDisposed())sh.dispose();},3000);
+  }
+
+  function damageEnemy(e,dmg){
+    if(!e.userData||!e.userData.alive) return;
+    e.userData.hp-=dmg;
+    // Red flash
+    const rf=BABYLON.MeshBuilder.CreateSphere('rf',{diameter:1.5,segments:4},scene);rf.position.copyFrom(e.position).addInPlaceFromFloats(0,1,0);
+    const rfm=new BABYLON.StandardMaterial('rfm',scene);rfm.emissiveColor=new BABYLON.Color3(1,0,0);rfm.alpha=0.5;rf.material=rfm;
+    effects.push({mesh:rf,life:0.25});
+    if(e.userData.hp<=0){
+      e.userData.alive=false;kills++;
+      kf('💀 '+e.userData.name+' defeated! +'+e.userData.xpReward+' XP','#ff4466');
+      gainXP(e.userData.xpReward);
+      // Death explosion
+      const ex=BABYLON.MeshBuilder.CreateSphere('ex',{diameter:3,segments:6},scene);ex.position.copyFrom(e.position).addInPlaceFromFloats(0,1,0);
+      const exm=new BABYLON.StandardMaterial('exm',scene);exm.emissiveColor=new BABYLON.Color3(1,0.3,0);exm.alpha=0.7;ex.material=exm;
+      effects.push({mesh:ex,life:0.5});
+      e.dispose();
+      // Respawn enemy after delay
+      setTimeout(()=>{
+        const angle=Math.random()*Math.PI*2;const dist=30+Math.random()*50;
+        spawnEnemy(Math.cos(angle)*dist,Math.sin(angle)*dist);
+      },8000);
+    }
+  }
+
+  // Input
+  window.addEventListener('keydown',e=>{
+    keys[e.code]=true;
+    if(e.code==='KeyQ') lightningStrike();
+    if(e.code==='KeyE') energyBlast();
+    if(e.code==='KeyR') gravityVortex();
+    if(e.code==='KeyF') shield();
+  });
+  window.addEventListener('keyup',e=>keys[e.code]=false);
+
+  // ===== GAME LOOP =====
+  let vy=0;let t=0;
+  engine.runRenderLoop(()=>{
+    const dt=engine.getDeltaTime()/1000;t+=dt;
+
+    // Cooldown timers
+    ['q','e','r','f'].forEach((k,i)=>{
+      cooldowns[k]=Math.max(0,cooldowns[k]-dt);
+      const idx=i+1;
+      const cd=document.getElementById('cd'+idx);
+      const sk=document.getElementById('sk'+idx);
+      if(cooldowns[k]>0){cd.style.display='flex';cd.textContent=Math.ceil(cooldowns[k]);sk.classList.remove('ready');}
+      else{cd.style.display='none';sk.classList.add('ready');}
+    });
+
+    // Energy regen
+    energy=Math.min(maxEnergy,energy+8*dt);
+
+    // Movement
+    const spd=12*(keys['ShiftLeft']||keys['ShiftRight']?1.8:1);
+    const fwd=cam.getForwardRay().direction;
+    const F=new BABYLON.Vector3(fwd.x,0,fwd.z).normalize();
+    const R=BABYLON.Vector3.Cross(BABYLON.Vector3.Up(),F).normalize();
+    let mv=BABYLON.Vector3.Zero();
+    if(keys['KeyW']||keys['ArrowUp'])   mv.addInPlace(F);
+    if(keys['KeyS']||keys['ArrowDown']) mv.subtractInPlace(F);
+    if(keys['KeyA']||keys['ArrowLeft']) mv.addInPlace(R);
+    if(keys['KeyD']||keys['ArrowRight'])mv.subtractInPlace(R);
+
+    if(mv.length()>0){
+      mv.normalize();
+      const ta=Math.atan2(mv.x,mv.z);
+      charNode.rotation.y=BABYLON.Scalar.LerpAngle(charNode.rotation.y,ta,0.12);
+    }
+
+    const ray=new BABYLON.Ray(player.position,new BABYLON.Vector3(0,-1,0),1.1);
+    const hit=scene.pickWithRay(ray,m=>m!==player&&m.name!=='aura'&&m.name!=='lv');
+    const grounded=hit&&hit.hit;
+    if(grounded){if(keys['Space']){vy=10;keys['Space']=false;}else vy=0;}
+    else vy=Math.max(vy-28*dt,-25);
+    const vel=mv.scale(spd*dt);vel.y=vy*dt;
+    player.moveWithCollisions(vel);
+    if(player.position.y<0.9){player.position.y=0.9;vy=0;}
+
+    // Cape flutter
+    if(cape)cape.rotation.z=Math.sin(t*3)*0.08+(mv.length()>0?0.15:0);
+
+    // Camera
+    cam.target=BABYLON.Vector3.Lerp(cam.target,player.position.add(new BABYLON.Vector3(0,0.8,0)),0.1);
+
+    // Aura pulse
+    auraMat.alpha=0.05+Math.sin(t*2)*0.03;
+
+    // Effect cleanup
+    for(let i=effects.length-1;i>=0;i--){
+      const ef=effects[i];ef.life-=dt;
+      if(ef.spin)ef.mesh.rotation.z+=dt*3;
+      if(ef.life<=0&&!ef.shieldRef){ef.mesh.dispose();effects.splice(i,1);}
+      else if(ef.life<=0&&ef.shieldRef){effects.splice(i,1);}
+    }
+
+    // Enemy AI
+    enemies.forEach(e=>{
+      if(!e.userData||!e.userData.alive||e.isDisposed()) return;
+      const d=player.position.subtract(e.position);d.y=0;const dist=d.length();
+      if(dist<60){
+        d.normalize();
+        e.position.addInPlace(d.scale(e.userData.speed*dt));
+        const ev=e.getChildren()[0];if(ev)ev.rotation.y=Math.atan2(d.x,d.z);
+        // Attack player
+        if(dist<2){
+          e.userData.attackTimer=(e.userData.attackTimer||0)+dt;
+          if(e.userData.attackTimer>1){
+            e.userData.attackTimer=0;
+            hp=Math.max(0,hp-8);flash(255,0,0,0.25);
+            if(hp<=0){document.getElementById('gameover').style.display='flex';}
+          }
+        }
+      }
+    });
+
+    updateBars();
+    scene.render();
+  });
+
+  window.addEventListener('resize',()=>engine.resize());
+}
+</script>
+</body>
+</html>
