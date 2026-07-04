@@ -339,39 +339,41 @@ function initBabylon(charKey){
       animGroups[0].play(true);
     }
 
-    // Gold chest armor
+    // Get bounding box of the loaded model to size armor correctly
+    const bounds = playerVisual.getHierarchyBoundingVectors();
+    const modelHeight = bounds.max.y - bounds.min.y;
+    const modelWidth = bounds.max.x - bounds.min.x;
+    const s = modelHeight; // use model height as scale reference
+    console.log('Model height:', modelHeight, 'width:', modelWidth);
+
     const cam2=new BABYLON.StandardMaterial('cam2',scene);cam2.diffuseColor=new BABYLON.Color3(0.85,0.65,0);cam2.emissiveColor=new BABYLON.Color3(0.5,0.35,0);
-    const chestArmor=BABYLON.MeshBuilder.CreateBox('chestArmor',{width:1.2,height:1.3,depth:0.3},scene);
-    chestArmor.parent=player;chestArmor.position.set(0,0.6,-0.55);chestArmor.material=cam2;sg.addShadowCaster(chestArmor);
 
-    // Lightning bolt on chest
+    // Chest armor — sized relative to model
+    const chestArmor=BABYLON.MeshBuilder.CreateBox('chestArmor',{width:s*0.45,height:s*0.35,depth:s*0.1},scene);
+    chestArmor.parent=playerVisual;chestArmor.position.set(0,bounds.max.y*0.55,-s*0.05);chestArmor.material=cam2;
+
+    // Lightning bolt
     const bm=new BABYLON.StandardMaterial('bm',scene);bm.emissiveColor=new BABYLON.Color3(1,1,0.1);
-    const bolt=BABYLON.MeshBuilder.CreateBox('bolt',{width:0.28,height:0.65,depth:0.12},scene);
-    bolt.parent=player;bolt.position.set(0,0.6,-0.72);bolt.material=bm;
+    const bolt=BABYLON.MeshBuilder.CreateBox('bolt',{width:s*0.08,height:s*0.2,depth:s*0.06},scene);
+    bolt.parent=playerVisual;bolt.position.set(0,bounds.max.y*0.55,-s*0.1);bolt.material=bm;
 
-    // Purple eye glow
+    // Purple eyes
     const eyeMat=new BABYLON.StandardMaterial('eyemat',scene);eyeMat.emissiveColor=new BABYLON.Color3(0.7,0.1,1);
-    [-0.28,0.28].forEach((x,i)=>{
-      const eyeGlow=BABYLON.MeshBuilder.CreateSphere('eg'+i,{diameter:0.22,segments:8},scene);
-      eyeGlow.parent=player;eyeGlow.position.set(x,1.35,-0.45);eyeGlow.material=eyeMat;
+    [-s*0.1,s*0.1].forEach((x,i)=>{
+      const eye=BABYLON.MeshBuilder.CreateSphere('eye'+i,{diameter:s*0.07,segments:8},scene);
+      eye.parent=playerVisual;eye.position.set(x,bounds.max.y*0.92,-s*0.15);eye.material=eyeMat;
     });
 
-    // Gold shoulder pads
-    [-0.85,0.85].forEach((x,i)=>{
-      const sp=BABYLON.MeshBuilder.CreateBox('sp'+i,{width:0.45,height:0.4,depth:0.55},scene);
-      sp.parent=player;sp.position.set(x,0.72,0);sp.material=cam2;sg.addShadowCaster(sp);
+    // Shoulder pads
+    [-s*0.32,s*0.32].forEach((x,i)=>{
+      const sp=BABYLON.MeshBuilder.CreateBox('sp'+i,{width:s*0.15,height:s*0.12,depth:s*0.18},scene);
+      sp.parent=playerVisual;sp.position.set(x,bounds.max.y*0.72,0);sp.material=cam2;
     });
 
-    // Gold knee pads
-    [-0.3,0.3].forEach((x,i)=>{
-      const kp=BABYLON.MeshBuilder.CreateBox('kp'+i,{width:0.38,height:0.25,depth:0.25},scene);
-      kp.parent=player;kp.position.set(x,0.1,-0.18);kp.material=cam2;
-    });
-
-    // Gold boots
-    [-0.3,0.3].forEach((x,i)=>{
-      const boot=BABYLON.MeshBuilder.CreateBox('boot'+i,{width:0.42,height:0.28,depth:0.55},scene);
-      boot.parent=player;boot.position.set(x,-0.72,0.08);boot.material=cam2;sg.addShadowCaster(boot);
+    // Boots
+    [-s*0.12,s*0.12].forEach((x,i)=>{
+      const boot=BABYLON.MeshBuilder.CreateBox('boot'+i,{width:s*0.16,height:s*0.08,depth:s*0.2},scene);
+      boot.parent=playerVisual;boot.position.set(x,bounds.min.y+s*0.04,s*0.02);boot.material=cam2;
     });
   });
 
