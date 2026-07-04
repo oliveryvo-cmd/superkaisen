@@ -325,7 +325,9 @@ function initBabylon(charKey){
 
   // Load GLB character model
   let playerVisual=null;
-  BABYLON.SceneLoader.ImportMesh('','./','ollie.glb',scene,function(meshes,ps2,skeletons,animGroups){
+  const glbUrl = window.location.protocol==='file:' ? 'https://assets.babylonjs.com/meshes/HVGirl.glb' : './ollie.glb';
+  const glbBase = window.location.protocol==='file:' ? '' : './';
+  BABYLON.SceneLoader.ImportMesh('',glbBase, window.location.protocol==='file:' ? 'https://assets.babylonjs.com/meshes/HVGirl.glb' : 'ollie.glb',scene,function(meshes,ps2,skeletons,animGroups){
     playerVisual=meshes[0];
     playerVisual.parent=player;
     playerVisual.position.set(0,-0.9,0);
@@ -362,11 +364,12 @@ function initBabylon(charKey){
   });
 
 
-  // Shared aura
-  const aura=BABYLON.MeshBuilder.CreateSphere('aura',{diameter:2.2,segments:10},scene);aura.parent=player;aura.position.y=0.9;
+  // Subtle ground glow under player
+  const aura=BABYLON.MeshBuilder.CreateDisc('aura',{radius:0.6,tessellation:16},scene);
+  aura.parent=player;aura.position.y=-0.88;aura.rotation.x=Math.PI/2;
   auraMat=new BABYLON.StandardMaterial('auramat',scene);
-  auraMat.emissiveColor=charKey==='ollie'?new BABYLON.Color3(0.3,0.2,0):new BABYLON.Color3(0.3,0.05,0.05);
-  auraMat.alpha=0.0;aura.material=auraMat;aura.isPickable=false;
+  auraMat.emissiveColor=charKey==='ollie'?new BABYLON.Color3(1,0.8,0):new BABYLON.Color3(1,0.1,0.1);
+  auraMat.alpha=0.25;aura.material=auraMat;aura.isPickable=false;
 
   // Particle trail
   const ps=new BABYLON.ParticleSystem('ps',80,scene);ps.emitter=player;
